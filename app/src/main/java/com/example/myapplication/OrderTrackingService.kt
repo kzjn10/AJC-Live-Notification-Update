@@ -12,7 +12,7 @@ class OrderTrackingService : Service() {
     companion object {
         const val ACTION_START = "com.example.myapplication.START_TRACKING"
         const val ACTION_STOP = "com.example.myapplication.STOP_TRACKING"
-        private const val UPDATE_INTERVAL_MS = 20000L
+        private const val UPDATE_INTERVAL_MS = 5000L
         
         var isRunning = false
             private set

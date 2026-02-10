@@ -1,15 +1,5 @@
 
-
-
-Updated code to support **Android 10+ (API 29+)** with latest APIs for **Android 16 (API 36)**.
-
-### Summary of Changes:
-
-| File | Change |
-|------|--------|
-| `@/Users/angu3018/Desktop/Temp/MyApplication2/app/build.gradle.kts:14` | `minSdk = 29` (Android 10+) |
-| `@/Users/angu3018/Desktop/Temp/MyApplication2/app/src/main/java/com/example/myapplication/NotificationHelper.kt:53-113` | Conditional notification building |
-| `@/Users/angu3018/Desktop/Temp/MyApplication2/app/src/main/java/com/example/myapplication/MainActivity.kt:63` | API level check for permission |
+[Demo](demo/Screen_recording_20260210_100234.mp4)
 
 ### Version-Specific Notification Building:
 
