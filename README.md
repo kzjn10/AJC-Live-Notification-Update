@@ -1,5 +1,8 @@
 
-[Demo](demo/Screen_recording_20260210_100234.mp4)
+![Screenshot_20260210_100425.png](demo/Screenshot_20260210_100425.png)
+![Screenshot_20260210_100435.png](demo/Screenshot_20260210_100435.png)
+![Screenshot_20260210_100445.png](demo/Screenshot_20260210_100445.png)
+![Screenshot_20260210_100502.png](demo/Screenshot_20260210_100502.png)
 
 ### Version-Specific Notification Building:
 
