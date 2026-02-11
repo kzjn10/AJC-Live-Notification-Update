@@ -57,9 +57,25 @@ class OrderTrackingService : Service() {
                 val index = currentStatusIndex.get()
                 if (index < statuses.size) {
                     val status = statuses[index]
-                    notificationHelper.showOrderStatusNotification(status)
                     
+                    if (status == OrderStatus.CANCELED) {
+                        notificationHelper.showOrderStatusNotification(status)
+                        sendStatusBroadcast(status)
+                        handler.postDelayed({
+                            stopTracking()
+                        }, 3000)
+                        return
+                    }
+                    
+                    notificationHelper.showOrderStatusNotification(status)
                     sendStatusBroadcast(status)
+                    
+                    if (status == OrderStatus.DELIVERED) {
+                        handler.postDelayed({
+                            stopTracking()
+                        }, 1000)
+                        return
+                    }
                     
                     currentStatusIndex.incrementAndGet()
                     

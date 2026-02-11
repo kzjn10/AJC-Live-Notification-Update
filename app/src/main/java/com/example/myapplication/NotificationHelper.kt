@@ -55,7 +55,7 @@ class NotificationHelper(private val context: Context) {
     
     fun buildNotification(status: OrderStatus): Notification {
         val remoteViews = createRemoteViews(status)
-        val isOngoing = status != OrderStatus.DELIVERED
+        val isOngoing = status != OrderStatus.DELIVERED && status != OrderStatus.CANCELED
         val contentIntent = createContentIntent()
         
         return if (Build.VERSION.SDK_INT >= API_36) {
@@ -221,7 +221,14 @@ enum class OrderStatus(
         "Delivered",
         "Your order has been delivered. Enjoy!",
         100,
-        "Delivered (auto-dismiss)",
+        "Delivered",
         4
+    ),
+    CANCELED(
+        "Order Canceled",
+        "Your order has been canceled. Sorry!",
+        100,
+        "Order Canceled",
+        0
     )
 }

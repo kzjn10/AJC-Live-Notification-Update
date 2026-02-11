@@ -38,6 +38,8 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myapplication.ui.theme.MyApplicationTheme
 
+typealias OrderStatusData = Pair<String, Color>
+
 class MainActivity : ComponentActivity() {
 
     private val requestPermissionLauncher = registerForActivityResult(
@@ -120,8 +122,9 @@ fun OrderDeliveryScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 if (currentStatus != null) {
+                    val (emoji, statusColor) = getStatusEmoji(currentStatus!!)
                     Text(
-                        text = getStatusEmoji(currentStatus!!),
+                        text = emoji,
                         fontSize = 48.sp
                     )
 
@@ -150,8 +153,7 @@ fun OrderDeliveryScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(8.dp),
-                        color = if (currentStatus == OrderStatus.DELIVERED)
-                            Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary,
+                        color = statusColor,
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -214,13 +216,14 @@ fun OrderDeliveryScreen(
 }
 
 @Composable
-fun getStatusEmoji(status: OrderStatus): String {
+fun getStatusEmoji(status: OrderStatus): Pair<String, Color> {
     return when (status) {
-        OrderStatus.ORDER_PLACED -> "✅"
-        OrderStatus.MERCHANT_ACCEPTED -> "👨‍🍳"
-        OrderStatus.DRIVER_ASSIGNED -> "🚗"
-        OrderStatus.PICKED_UP -> "📦"
-        OrderStatus.ARRIVING_SOON -> "🚚"
-        OrderStatus.DELIVERED -> "🎉"
+        OrderStatus.ORDER_PLACED -> Pair("✅", Color(0xFF4CAF50))
+        OrderStatus.MERCHANT_ACCEPTED -> Pair("👨‍🍳", Color(0xFFFF9800))
+        OrderStatus.DRIVER_ASSIGNED -> Pair("🚗", Color(0xFF2196F3))
+        OrderStatus.PICKED_UP -> Pair("📦", Color(0xFF9C27B0))
+        OrderStatus.ARRIVING_SOON -> Pair("🚚", Color(0xFF00BCD4))
+        OrderStatus.DELIVERED -> Pair("🎉", Color(0xFF4CAF50))
+        OrderStatus.CANCELED -> Pair("❌", Color(0xFFF44336))
     }
 }
