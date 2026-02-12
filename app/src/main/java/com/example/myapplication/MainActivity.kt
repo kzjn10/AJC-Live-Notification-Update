@@ -219,14 +219,14 @@ fun OrderDeliveryScreen(
 }
 
 @Composable
-fun getStatusEmoji(status: OrderStatus): Pair<String, Color> {
+fun getStatusEmoji(status: OrderStatus): OrderStatusData {
     return when (status) {
-        OrderStatus.ORDER_PLACED -> Pair("✅", Color(0xFF4CAF50))
-        OrderStatus.MERCHANT_ACCEPTED -> Pair("👨‍🍳", Color(0xFFFF9800))
-        OrderStatus.DRIVER_ASSIGNED -> Pair("🚗", Color(0xFF2196F3))
-        OrderStatus.PICKED_UP -> Pair("📦", Color(0xFF9C27B0))
-        OrderStatus.ARRIVING_SOON -> Pair("🚚", Color(0xFF00BCD4))
-        OrderStatus.DELIVERED -> Pair("🎉", Color(0xFF4CAF50))
-        OrderStatus.CANCELED -> Pair("❌", Color(0xFFF44336))
+        OrderStatus.ORDER_PLACED -> OrderStatusData("✅", Color(0xFF4CAF50))
+        OrderStatus.MERCHANT_ACCEPTED -> OrderStatusData("👨‍🍳", Color(0xFFFF9800))
+        OrderStatus.DRIVER_ASSIGNED -> OrderStatusData("🚗", Color(0xFF2196F3))
+        OrderStatus.PICKED_UP -> OrderStatusData("📦", Color(0xFF9C27B0))
+        OrderStatus.ARRIVING_SOON -> OrderStatusData("🚚", Color(0xFF00BCD4))
+        OrderStatus.DELIVERED -> OrderStatusData("🎉", Color(0xFF4CAF50))
+        OrderStatus.CANCELED -> OrderStatusData("❌", Color(0xFFF44336))
     }
 }

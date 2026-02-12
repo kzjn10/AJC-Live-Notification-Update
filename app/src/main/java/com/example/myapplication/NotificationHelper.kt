@@ -1,17 +1,17 @@
 package com.example.myapplication
 
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Build
 import android.util.Log
 import android.widget.RemoteViews
-import android.annotation.SuppressLint
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import java.io.InputStream
@@ -20,6 +20,7 @@ import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+import androidx.core.graphics.scale
 
 /**
  * NotificationHelper supporting Android 10+ (API 29+)
@@ -58,19 +59,25 @@ class NotificationHelper(private val context: Context) {
         val notification = buildNotification(status, logoUrl)
         notificationManager.notify(NOTIFICATION_ID, notification)
     }
-    
+
     fun buildNotification(status: OrderStatus, logoUrl: String? = null): Notification {
         val remoteViews = createRemoteViews(status, logoUrl)
-        val isOngoing = status != OrderStatus.DELIVERED && status != OrderStatus.CANCELED
+        val isOngoing = status in listOf(
+            OrderStatus.ORDER_PLACED,
+            OrderStatus.MERCHANT_ACCEPTED,
+            OrderStatus.DRIVER_ASSIGNED,
+            OrderStatus.PICKED_UP,
+            OrderStatus.ARRIVING_SOON
+        )
+
         val contentIntent = createContentIntent()
-        
         return if (Build.VERSION.SDK_INT >= API_36) {
             buildNotificationApi36(remoteViews, isOngoing, contentIntent, status)
         } else {
             buildNotificationCompat(remoteViews, isOngoing, contentIntent, status)
         }
     }
-    
+
     private fun createContentIntent(): PendingIntent {
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -82,27 +89,34 @@ class NotificationHelper(private val context: Context) {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
     }
-    
+
     private fun createRemoteViews(status: OrderStatus, logoUrl: String?): RemoteViews {
         val remoteViews = RemoteViews(context.packageName, R.layout.notification_order_status)
-        
+
         try {
             remoteViews.setTextViewText(R.id.notification_title, status.notificationTitle)
             remoteViews.setTextViewText(R.id.notification_subtitle, getArrivalTimeText())
-            
+
             val segmentIds = listOf(
                 R.id.progress_segment_1,
                 R.id.progress_segment_2,
                 R.id.progress_segment_3,
                 R.id.progress_segment_4
             )
-            
-            segmentIds.forEachIndexed { index, viewId ->
-                val isActive = index < status.segmentProgress
-                val drawableRes = if (isActive) R.drawable.segment_active else R.drawable.segment_inactive
-                remoteViews.setImageViewResource(viewId, drawableRes)
+
+            if(status == OrderStatus.CANCELED){
+                segmentIds.forEach { viewId ->
+                    remoteViews.setImageViewResource(viewId, R.drawable.segment_canceled)
+                }
+            }else {
+                segmentIds.forEachIndexed { index, viewId ->
+                    val isActive = index < status.segmentProgress
+                    val drawableRes =
+                        if (isActive) R.drawable.segment_active else R.drawable.segment_inactive
+                    remoteViews.setImageViewResource(viewId, drawableRes)
+                }
             }
-            
+
             // Load merchant logo from URL
             if (!logoUrl.isNullOrEmpty()) {
                 try {
@@ -111,7 +125,10 @@ class NotificationHelper(private val context: Context) {
                         remoteViews.setImageViewBitmap(R.id.img_merchant_logo, logoBitmap)
                     } else {
                         // Fallback to placeholder if loading fails
-                        remoteViews.setImageViewResource(R.id.img_merchant_logo, R.mipmap.ic_launcher)
+                        remoteViews.setImageViewResource(
+                            R.id.img_merchant_logo,
+                            R.mipmap.ic_launcher
+                        )
                     }
                 } catch (e: Exception) {
                     Log.e("NotificationHelper", "Error loading logo: ${e.message}")
@@ -124,17 +141,17 @@ class NotificationHelper(private val context: Context) {
         } catch (e: Exception) {
             Log.e("NotificationHelper", "Error creating RemoteViews: ${e.message}")
         }
-        
+
         return remoteViews
     }
-    
+
     @SuppressLint("MissingPermission")
     @RequiresApi(API_36)
     private fun buildNotificationApi36(
         remoteViews: RemoteViews,
         isOngoing: Boolean,
         contentIntent: PendingIntent,
-        status: OrderStatus
+        status: OrderStatus,
     ): Notification {
         return Notification.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
@@ -151,12 +168,12 @@ class NotificationHelper(private val context: Context) {
             .setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
             .build()
     }
-    
+
     private fun buildNotificationCompat(
         remoteViews: RemoteViews,
         isOngoing: Boolean,
         contentIntent: PendingIntent,
-        status: OrderStatus
+        status: OrderStatus,
     ): Notification {
         return NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
@@ -173,7 +190,7 @@ class NotificationHelper(private val context: Context) {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .build()
     }
-    
+
     private fun getArrivalTimeText(): String {
         val calendar = Calendar.getInstance()
         calendar.add(Calendar.MINUTE, 20)
@@ -186,11 +203,11 @@ class NotificationHelper(private val context: Context) {
     fun cancelNotification() {
         notificationManager.cancel(NOTIFICATION_ID)
     }
-    
+
     private fun loadImageFromUrl(urlString: String): Bitmap? {
         var connection: HttpURLConnection? = null
         var inputStream: InputStream? = null
-        
+
         return try {
             val url = URL(urlString)
             connection = url.openConnection() as HttpURLConnection
@@ -198,13 +215,13 @@ class NotificationHelper(private val context: Context) {
             connection.connectTimeout = 5000
             connection.readTimeout = 5000
             connection.connect()
-            
+
             inputStream = connection.inputStream
-            val bitmap = BitmapFactory.decodeStream(inputStream)
-            
+            val bitmap = BitmapFactory.decodeStream(inputStream) ?: return null
+
             // Scale bitmap to appropriate size for notification (64dp)
             val size = (64 * context.resources.displayMetrics.density).toInt()
-            Bitmap.createScaledBitmap(bitmap, size, size, true)
+            bitmap.scale(size, size)
         } catch (e: Exception) {
             Log.e("NotificationHelper", "Failed to load image from URL: ${e.message}")
             null
@@ -220,7 +237,7 @@ enum class OrderStatus(
     val detailedMessage: String,
     val progress: Int,
     val notificationTitle: String,
-    val segmentProgress: Int
+    val segmentProgress: Int,
 ) {
     ORDER_PLACED(
         "Order Confirmed",
