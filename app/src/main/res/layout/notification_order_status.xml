@@ -25,8 +25,8 @@
                 android:layout_weight="1"
                 android:ellipsize="end"
                 android:maxLines="2"
+                style="@android:style/TextAppearance.Material.Notification.Title"
                 android:text="We received your order."
-                android:textColor="@android:color/white"
                 android:textSize="15sp"
                 android:textStyle="bold" />
 
@@ -37,8 +37,8 @@
                 android:layout_marginTop="2dp"
                 android:ellipsize="end"
                 android:maxLines="2"
+                style="@android:style/TextAppearance.Material.Notification.Line2"
                 android:text="Arriving by: 12:20-12:30 PM"
-                android:textColor="#9E9E9E"
                 android:textSize="13sp" />
         </LinearLayout>
 
