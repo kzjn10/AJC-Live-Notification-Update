@@ -15,9 +15,9 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         super.onMessageReceived(remoteMessage)
         
         Log.d(TAG, "From: ${remoteMessage.from}")
+        Log.d(TAG, "Message data payload: ${remoteMessage.data}")
 
-        remoteMessage.data.isNotEmpty().let {
-            Log.d(TAG, "Message data payload: ${remoteMessage.data}")
+        if (remoteMessage.data.isNotEmpty()) {
             handleDataPayload(remoteMessage.data)
         }
 
@@ -29,13 +29,14 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     private fun handleDataPayload(data: Map<String, String>) {
         val orderStatus = data["order_status"]
         val statusOrdinal = data["status_ordinal"]?.toIntOrNull()
+        val logoUrl = data["logo_url"]
         
         if (orderStatus != null || statusOrdinal != null) {
-            updateOrderStatus(statusOrdinal, orderStatus)
+            updateOrderStatus(statusOrdinal, orderStatus, logoUrl)
         }
     }
 
-    private fun updateOrderStatus(statusOrdinal: Int?, statusName: String?) {
+    private fun updateOrderStatus(statusOrdinal: Int?, statusName: String?, logoUrl: String?) {
         val status = when {
             statusOrdinal != null && statusOrdinal in OrderStatus.entries.indices -> {
                 OrderStatus.entries[statusOrdinal]
@@ -53,11 +54,14 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
         status?.let {
             Log.d(TAG, "Updating order status to: ${it.name}")
+            if (!logoUrl.isNullOrEmpty()) {
+                Log.d(TAG, "Logo URL: $logoUrl")
+            }
             
             OrderTrackingService.currentStatusIndex.set(it.ordinal)
             
             val notificationHelper = NotificationHelper(this)
-            notificationHelper.showOrderStatusNotification(it)
+            notificationHelper.showOrderStatusNotification(it, logoUrl)
             
             val broadcastIntent = Intent("com.example.myapplication.ORDER_STATUS_UPDATE")
             broadcastIntent.putExtra("status_ordinal", it.ordinal)
@@ -82,11 +86,11 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        Log.d(TAG, "Refreshed token: $token")
+        Log.d(TAG, "FCM token: $token")
         sendRegistrationToServer(token)
     }
 
     private fun sendRegistrationToServer(token: String) {
-        Log.d(TAG, "sendRegistrationTokenToServer($token)")
+        Log.d(TAG, "FCM token $token")
     }
 }

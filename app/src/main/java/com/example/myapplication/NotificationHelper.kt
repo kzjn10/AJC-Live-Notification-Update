@@ -7,10 +7,16 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.util.Log
 import android.widget.RemoteViews
 import android.annotation.SuppressLint
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
+import java.io.InputStream
+import java.net.HttpURLConnection
+import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -48,20 +54,20 @@ class NotificationHelper(private val context: Context) {
         notificationManager.createNotificationChannel(channel)
     }
 
-    fun showOrderStatusNotification(status: OrderStatus) {
-        val notification = buildNotification(status)
+    fun showOrderStatusNotification(status: OrderStatus, logoUrl: String? = null) {
+        val notification = buildNotification(status, logoUrl)
         notificationManager.notify(NOTIFICATION_ID, notification)
     }
     
-    fun buildNotification(status: OrderStatus): Notification {
-        val remoteViews = createRemoteViews(status)
+    fun buildNotification(status: OrderStatus, logoUrl: String? = null): Notification {
+        val remoteViews = createRemoteViews(status, logoUrl)
         val isOngoing = status != OrderStatus.DELIVERED && status != OrderStatus.CANCELED
         val contentIntent = createContentIntent()
         
         return if (Build.VERSION.SDK_INT >= API_36) {
-            buildNotificationApi36(remoteViews, isOngoing, contentIntent)
+            buildNotificationApi36(remoteViews, isOngoing, contentIntent, status)
         } else {
-            buildNotificationCompat(remoteViews, isOngoing, contentIntent)
+            buildNotificationCompat(remoteViews, isOngoing, contentIntent, status)
         }
     }
     
@@ -77,23 +83,46 @@ class NotificationHelper(private val context: Context) {
         )
     }
     
-    private fun createRemoteViews(status: OrderStatus): RemoteViews {
+    private fun createRemoteViews(status: OrderStatus, logoUrl: String?): RemoteViews {
         val remoteViews = RemoteViews(context.packageName, R.layout.notification_order_status)
         
-        remoteViews.setTextViewText(R.id.notification_title, status.notificationTitle)
-        remoteViews.setTextViewText(R.id.notification_subtitle, getArrivalTimeText())
-        
-        val segmentIds = listOf(
-            R.id.progress_segment_1,
-            R.id.progress_segment_2,
-            R.id.progress_segment_3,
-            R.id.progress_segment_4
-        )
-        
-        segmentIds.forEachIndexed { index, viewId ->
-            val isActive = index < status.segmentProgress
-            val drawableRes = if (isActive) R.drawable.segment_active else R.drawable.segment_inactive
-            remoteViews.setImageViewResource(viewId, drawableRes)
+        try {
+            remoteViews.setTextViewText(R.id.notification_title, status.notificationTitle)
+            remoteViews.setTextViewText(R.id.notification_subtitle, getArrivalTimeText())
+            
+            val segmentIds = listOf(
+                R.id.progress_segment_1,
+                R.id.progress_segment_2,
+                R.id.progress_segment_3,
+                R.id.progress_segment_4
+            )
+            
+            segmentIds.forEachIndexed { index, viewId ->
+                val isActive = index < status.segmentProgress
+                val drawableRes = if (isActive) R.drawable.segment_active else R.drawable.segment_inactive
+                remoteViews.setImageViewResource(viewId, drawableRes)
+            }
+            
+            // Load merchant logo from URL
+            if (!logoUrl.isNullOrEmpty()) {
+                try {
+                    val logoBitmap = loadImageFromUrl(logoUrl)
+                    if (logoBitmap != null) {
+                        remoteViews.setImageViewBitmap(R.id.img_merchant_logo, logoBitmap)
+                    } else {
+                        // Fallback to placeholder if loading fails
+                        remoteViews.setImageViewResource(R.id.img_merchant_logo, R.mipmap.ic_launcher)
+                    }
+                } catch (e: Exception) {
+                    Log.e("NotificationHelper", "Error loading logo: ${e.message}")
+                    remoteViews.setImageViewResource(R.id.img_merchant_logo, R.mipmap.ic_launcher)
+                }
+            } else {
+                // No logo URL provided, use placeholder
+                remoteViews.setImageViewResource(R.id.img_merchant_logo, R.mipmap.ic_launcher)
+            }
+        } catch (e: Exception) {
+            Log.e("NotificationHelper", "Error creating RemoteViews: ${e.message}")
         }
         
         return remoteViews
@@ -104,60 +133,44 @@ class NotificationHelper(private val context: Context) {
     private fun buildNotificationApi36(
         remoteViews: RemoteViews,
         isOngoing: Boolean,
-        contentIntent: PendingIntent
+        contentIntent: PendingIntent,
+        status: OrderStatus
     ): Notification {
-        val publicNotification = Notification.Builder(context, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_menu_send)
-            .setStyle(Notification.DecoratedCustomViewStyle())
-            .setCustomContentView(remoteViews)
-            .setCustomBigContentView(remoteViews)
-            .build()
-
         return Notification.Builder(context, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_menu_send)
-            .setStyle(Notification.DecoratedCustomViewStyle())
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(status.notificationTitle)
+            .setContentText(getArrivalTimeText())
             .setCustomContentView(remoteViews)
             .setCustomBigContentView(remoteViews)
             .setCustomHeadsUpContentView(remoteViews)
             .setContentIntent(contentIntent)
             .setOngoing(isOngoing)
             .setAutoCancel(!isOngoing)
-            .setOnlyAlertOnce(true)
             .setCategory(Notification.CATEGORY_PROGRESS)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
-            .setPublicVersion(publicNotification)
             .setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
-            .setFullScreenIntent(contentIntent, true)
             .build()
     }
     
     private fun buildNotificationCompat(
         remoteViews: RemoteViews,
         isOngoing: Boolean,
-        contentIntent: PendingIntent
+        contentIntent: PendingIntent,
+        status: OrderStatus
     ): Notification {
-        val publicNotification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_menu_send)
-            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
-            .setCustomContentView(remoteViews)
-            .setCustomBigContentView(remoteViews)
-            .build()
-
         return NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_menu_send)
-            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(status.notificationTitle)
+            .setContentText(getArrivalTimeText())
             .setCustomContentView(remoteViews)
             .setCustomBigContentView(remoteViews)
             .setCustomHeadsUpContentView(remoteViews)
             .setContentIntent(contentIntent)
             .setOngoing(isOngoing)
             .setAutoCancel(!isOngoing)
-            .setOnlyAlertOnce(true)
             .setCategory(NotificationCompat.CATEGORY_PROGRESS)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setPublicVersion(publicNotification)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setFullScreenIntent(contentIntent, true)
             .build()
     }
     
@@ -172,6 +185,33 @@ class NotificationHelper(private val context: Context) {
 
     fun cancelNotification() {
         notificationManager.cancel(NOTIFICATION_ID)
+    }
+    
+    private fun loadImageFromUrl(urlString: String): Bitmap? {
+        var connection: HttpURLConnection? = null
+        var inputStream: InputStream? = null
+        
+        return try {
+            val url = URL(urlString)
+            connection = url.openConnection() as HttpURLConnection
+            connection.doInput = true
+            connection.connectTimeout = 5000
+            connection.readTimeout = 5000
+            connection.connect()
+            
+            inputStream = connection.inputStream
+            val bitmap = BitmapFactory.decodeStream(inputStream)
+            
+            // Scale bitmap to appropriate size for notification (64dp)
+            val size = (64 * context.resources.displayMetrics.density).toInt()
+            Bitmap.createScaledBitmap(bitmap, size, size, true)
+        } catch (e: Exception) {
+            Log.e("NotificationHelper", "Failed to load image from URL: ${e.message}")
+            null
+        } finally {
+            inputStream?.close()
+            connection?.disconnect()
+        }
     }
 }
 
